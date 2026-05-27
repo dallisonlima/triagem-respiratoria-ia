@@ -58,6 +58,26 @@ if "user" not in st.session_state or st.session_state.user is None:
         except Exception:
             pass
 
+def validar_cpf(cpf_str: str) -> bool:
+    """Valida se o CPF informado é válido."""
+    cpf = "".join(filter(str.isdigit, cpf_str))
+    if len(cpf) != 11:
+        return False
+    # Rejeita CPFs com todos os números iguais
+    if cpf == cpf[0] * 11:
+        return False
+    # Cálculo do primeiro dígito verificador
+    soma = sum(int(cpf[i]) * (10 - i) for i in range(9))
+    resto = soma % 11
+    digito1 = 0 if resto < 2 else 11 - resto
+    if int(cpf[9]) != digito1:
+        return False
+    # Cálculo do segundo dígito verificador
+    soma = sum(int(cpf[i]) * (11 - i) for i in range(10))
+    resto = soma % 11
+    digito2 = 0 if resto < 2 else 11 - resto
+    return int(cpf[10]) == digito2
+
 defaults = {
     "user":         None,   # dict com email e token quando logado
     "step":         "train",
@@ -389,7 +409,7 @@ def carregar_historico() -> list:
     try:
         resp = requests.get(
             f"{SUPABASE_URL}/rest/v1/historico"
-            f"?usuario=eq.{usuario}&order=criado_em.desc&limit=50",
+            f"?select=*,feedbacks(desfecho_real_grave)&usuario=eq.{usuario}&order=criado_em.desc&limit=50",
             headers={
                 "apikey":        SUPABASE_KEY,
                 "Authorization": f"Bearer {token}",
@@ -401,6 +421,47 @@ def carregar_historico() -> list:
     except Exception:
         pass
     return []
+
+
+def enviar_feedback(id_historico: int, desfecho_real_grave: bool):
+    """Envia o feedback do médico para a tabela feedbacks no Supabase."""
+    token = st.session_state.user.get("token", "")
+    headers = {
+        "apikey":        SUPABASE_KEY,
+        "Authorization": f"Bearer {token}",
+        "Content-Type":  "application/json",
+        "Prefer":        "return=minimal",
+    }
+    payload = {
+        "id_historico": id_historico,
+        "desfecho_real_grave": desfecho_real_grave
+    }
+    try:
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/feedbacks",
+            headers=headers,
+            json=payload,
+            timeout=10,
+        )
+        if resp.ok:
+            st.success("✅ Feedback registrado com sucesso!")
+            # Recarrega a página para atualizar o status (o query param já foi limpo)
+            st.rerun()
+        else:
+            st.error(f"Erro ao registrar feedback: {resp.text}")
+    except Exception as e:
+        st.error(f"Erro de conexão: {e}")
+
+# Processa cliques nos botões de feedback do histórico via query params
+params = st.query_params
+if "fb_id" in params and "fb_grave" in params:
+    try:
+        f_id = int(params["fb_id"])
+        f_grave = params["fb_grave"] == "1"
+        st.query_params.clear()
+        enviar_feedback(f_id, f_grave)
+    except Exception:
+        pass
 
 
 # ══════════════════════════════════════════════════════════════
@@ -471,11 +532,29 @@ elif st.session_state.step == "form":
         const inputs = Array.from(doc.querySelectorAll('input'));
         const cpfInput = inputs.find(i => i.placeholder === '000.000.000-00');
         
+        function isValidCPF(cpf) {
+            cpf = cpf.replace(/[^\d]+/g, '');
+            if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+            let soma = 0;
+            for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
+            let resto = 11 - (soma % 11);
+            if (resto === 10 || resto === 11) resto = 0;
+            if (resto !== parseInt(cpf.charAt(9))) return false;
+            soma = 0;
+            for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
+            resto = 11 - (soma % 11);
+            if (resto === 10 || resto === 11) resto = 0;
+            if (resto !== parseInt(cpf.charAt(10))) return false;
+            return true;
+        }
+
         if (cpfInput && !cpfInput.dataset.maskAttached) {
             cpfInput.dataset.maskAttached = 'true';
             cpfInput.addEventListener('input', function(e) {
                 let v = e.target.value.replace(/\D/g, '');
                 if (v.length > 14) v = v.slice(0, 14);
+                
+                let rawValue = v; // Guarda os números puros
                 
                 v = v.replace(/(\d{3})(\d)/, '$1.$2');
                 v = v.replace(/(\d{3})(\d)/, '$1.$2');
@@ -485,6 +564,35 @@ elif st.session_state.step == "form":
                     let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
                     nativeInputValueSetter.call(e.target, v);
                     e.target.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                
+                // Mensagem de validação ao vivo
+                let stTextInput = cpfInput.closest('div[data-testid="stTextInput"]');
+                if (stTextInput) {
+                    let msgDiv = stTextInput.querySelector('.cpf-msg');
+                    if (!msgDiv) {
+                        msgDiv = doc.createElement('div');
+                        msgDiv.className = 'cpf-msg';
+                        msgDiv.style.fontSize = '0.8rem';
+                        msgDiv.style.marginTop = '4px';
+                        msgDiv.style.fontWeight = '600';
+                        stTextInput.appendChild(msgDiv);
+                    }
+                    
+                    if (rawValue.length === 11) {
+                        if (isValidCPF(rawValue)) {
+                            msgDiv.textContent = '✅ CPF Válido';
+                            msgDiv.style.color = '#059669';
+                        } else {
+                            msgDiv.textContent = '❌ CPF Inválido';
+                            msgDiv.style.color = '#dc2626';
+                        }
+                    } else if (rawValue.length > 0) {
+                        msgDiv.textContent = '⏳ Digitando...';
+                        msgDiv.style.color = '#94a3b8';
+                    } else {
+                        msgDiv.textContent = '';
+                    }
                 }
             });
         }
@@ -528,8 +636,7 @@ elif st.session_state.step == "form":
 
     # Validação
     algum_selecionado = any([febre, tosse, dispneia, garganta, saturacao, asma, diabetes, cardiopatia])
-    cpf_numeros = "".join(filter(str.isdigit, cpf)) if cpf else ""
-    cpf_valido = len(cpf_numeros) == 11
+    cpf_valido = validar_cpf(cpf) if cpf else False
     dados_preenchidos = bool(nome and nome.strip() and cpf_valido and sexo and data_nasc)
     pode_enviar = algum_selecionado and dados_preenchidos
 
@@ -781,8 +888,31 @@ elif st.session_state.step == "historico":
             <div class="hist-prob-label">prob. complicação</div>
         </div>
     </div>
+"""
+
+            # Lógica de Feedback embutida no cartão
+            feedbacks_do_registro = reg.get("feedbacks", [])
+            ja_validado = len(feedbacks_do_registro) > 0
+
+            if ja_validado:
+                desfecho_grave = feedbacks_do_registro[0].get("desfecho_real_grave", False)
+                texto_desfecho = "Grave" if desfecho_grave else "Leve/Moderado"
+                card_html += f"""
+<div style="margin-top:16px;padding:10px;background:rgba(16,185,129,0.1);border-radius:12px;color:#059669;font-size:0.85rem;font-weight:600;text-align:center;border:1px solid rgba(16,185,129,0.2);">
+    ✅ Validado pelo médico como: {texto_desfecho}
 </div>
 """
+            else:
+                id_hist = reg.get("id")
+                if id_hist:
+                    card_html += f"""
+<div class="hist-card-actions" style="display:flex;gap:12px;margin-top:16px;border-top:1px solid rgba(148,163,184,0.12);padding-top:16px;">
+    <a href="?fb_id={id_hist}&fb_grave=1" target="_self" class="btn-primary" style="flex:1;text-decoration:none;font-size:0.85rem;font-weight:600;padding:10px 16px;border-radius:10px;text-align:center;background:linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);color:white;box-shadow:0 4px 12px rgba(37,99,235,0.15);">Confirmar Evolução: Grave (UTI/Óbito)</a>
+    <a href="?fb_id={id_hist}&fb_grave=0" target="_self" class="btn-secondary" style="flex:1;text-decoration:none;font-size:0.85rem;font-weight:600;padding:10px 16px;border-radius:10px;text-align:center;background:rgba(241,245,249,1);color:#475569;border:1px solid rgba(148,163,184,0.2);">Confirmar Evolução: Leve/Moderado</a>
+</div>
+"""
+            
+            card_html += "</div>"
             st.markdown(card_html, unsafe_allow_html=True)
 
     st.write("")

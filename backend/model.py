@@ -82,6 +82,22 @@ def obter_dados_e_treinar():
 
     X, Y = _extrair_features(df)
 
+    # ── Busca os feedbacks (retroalimentação local) ─────────────
+    X_fb, Y_fb = [], []
+    try:
+        endpoint_fb = f"{url}/rest/v1/feedbacks?select=desfecho_real_grave,historico(*)"
+        resp_fb = requests.get(endpoint_fb, headers=headers, timeout=10)
+        if resp_fb.ok:
+            fb_data = resp_fb.json()
+            X_fb, Y_fb = _extrair_features_feedbacks(fb_data)
+            print(f"Buscados {len(X_fb)} registros de feedback validados.")
+    except Exception as e:
+        print(f"Erro ao buscar feedbacks: {e}")
+
+    # Junta os dados do SIVEP-Gripe originais com os feedbacks
+    X.extend(X_fb)
+    Y.extend(Y_fb)
+
     if len(X) < 20:
         raise ValueError("Foram encontradas poucas linhas válidas de pacientes.")
 
@@ -223,6 +239,52 @@ def _extrair_features(df: pd.DataFrame):
             Y.append(1 if is_grave else 0)
 
     return X, Y
+
+
+def _extrair_features_feedbacks(feedbacks_list: list):
+    """
+    Extrai as features e targets dos registros de feedback validados pelo médico.
+    Mapeia os dados do histórico (booleanos) para o formato do classificador (0 e 1).
+    """
+    X_fb, Y_fb = [], []
+    
+    mapping = {
+        'FEBRE': 'febre',
+        'TOSSE': 'tosse',
+        'GARGANTA': 'garganta',
+        'DISPNEIA': 'dispneia',
+        'ASMA': 'asma',
+        'DIABETES': 'diabetes',
+        'CARDIOPATI': 'cardiopatia',
+        'SATURACAO': 'saturacao'
+    }
+
+    for item in feedbacks_list:
+        try:
+            is_grave = item.get("desfecho_real_grave", False)
+            hist = item.get("historico")
+            
+            # Se a FK estiver vazia por algum motivo
+            if not hist or not isinstance(hist, dict):
+                continue
+                
+            idade = hist.get("idade", 0)
+            if idade > 120:
+                continue
+
+            row_features = []
+            for key in FEATURE_KEYS:
+                val_bool = hist.get(mapping[key], False)
+                row_features.append(1 if val_bool else 0)
+            
+            row_features.append(idade / 100.0)
+            
+            X_fb.append(row_features)
+            Y_fb.append(1 if is_grave else 0)
+        except Exception:
+            pass
+
+    return X_fb, Y_fb
 
 
 # ──────────────────────────────────────────────────────────────
