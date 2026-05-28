@@ -573,7 +573,7 @@ elif st.session_state.step == "form":
             "CPF",
             placeholder="000.000.000-00",
             key="paciente_cpf",
-            max_chars=14,
+            max_chars=11,
             on_change=formatar_cpf_input
         )
         
