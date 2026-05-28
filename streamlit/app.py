@@ -452,16 +452,8 @@ def enviar_feedback(id_historico: int, desfecho_real_grave: bool):
     except Exception as e:
         st.error(f"Erro de conexão: {e}")
 
-# Processa cliques nos botões de feedback do histórico via query params
-params = st.query_params
-if "fb_id" in params and "fb_grave" in params:
-    try:
-        f_id = int(params["fb_id"])
-        f_grave = params["fb_grave"] == "1"
-        st.query_params.clear()
-        enviar_feedback(f_id, f_grave)
-    except Exception:
-        pass
+
+
 
 
 # ══════════════════════════════════════════════════════════════
@@ -902,18 +894,21 @@ elif st.session_state.step == "historico":
     ✅ Validado pelo médico como: {texto_desfecho}
 </div>
 """
-            else:
-                id_hist = reg.get("id")
-                if id_hist:
-                    card_html += f"""
-<div class="hist-card-actions" style="display:flex;gap:12px;margin-top:16px;border-top:1px solid rgba(148,163,184,0.12);padding-top:16px;">
-    <a href="?fb_id={id_hist}&fb_grave=1" target="_self" class="btn-primary" style="flex:1;text-decoration:none;font-size:0.85rem;font-weight:600;padding:10px 16px;border-radius:10px;text-align:center;background:linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);color:white;box-shadow:0 4px 12px rgba(37,99,235,0.15);">Confirmar Evolução: Grave (UTI/Óbito)</a>
-    <a href="?fb_id={id_hist}&fb_grave=0" target="_self" class="btn-secondary" style="flex:1;text-decoration:none;font-size:0.85rem;font-weight:600;padding:10px 16px;border-radius:10px;text-align:center;background:rgba(241,245,249,1);color:#475569;border:1px solid rgba(148,163,184,0.2);">Confirmar Evolução: Leve/Moderado</a>
-</div>
-"""
-            
+
             card_html += "</div>"
             st.markdown(card_html, unsafe_allow_html=True)
+
+            # Botões de feedback nativos do Streamlit (sem navegação de página)
+            if not ja_validado:
+                id_hist = reg.get("id")
+                if id_hist:
+                    fb_col1, fb_col2 = st.columns(2)
+                    with fb_col1:
+                        if st.button("🚨 Confirmar: Grave", key=f"fb_grave_{id_hist}", use_container_width=True):
+                            enviar_feedback(id_hist, True)
+                    with fb_col2:
+                        if st.button("✅ Confirmar: Leve/Moderado", key=f"fb_leve_{id_hist}", use_container_width=True):
+                            enviar_feedback(id_hist, False)
 
     st.write("")
     if st.button("← Voltar", use_container_width=True):
