@@ -1,18 +1,20 @@
 # 🩺 MedTriagem IA — Dashboard Streamlit
 
-Interface visual interativa do sistema de **triagem clínica respiratória**, construída com **Streamlit**. Este painel consome a API FastAPI do backend para treinar e executar o modelo de Inteligência Artificial, apresentando os resultados de forma clara e acessível.
+Interface visual interativa do sistema de **triagem clínica respiratória**, construída com **Streamlit**. Este painel consome a API FastAPI do backend para treinar e executar o modelo de Inteligência Artificial, além de interagir diretamente com o **Supabase** para autenticação de usuários, armazenamento de histórico e registro de feedbacks médicos.
 
 ---
 
 ## 📋 Visão Geral
 
-O dashboard é dividido em **três telas sequenciais**:
+O dashboard é dividido em **cinco telas**:
 
 | Tela | Descrição |
-|------|-----------|
-| 🚀 **Treinamento** | Dispara o treinamento da IA com dados reais do SIVEP-Gripe via backend |
-| 📝 **Formulário** | Coleta idade, sintomas e comorbidades do paciente — ao menos 1 item obrigatório |
-| 📊 **Resultado** | Exibe o diagnóstico com nível de risco, probabilidade e perfil do paciente |
+|------|-----------| 
+| 🔐 **Login / Cadastro** | Autenticação via Supabase Auth (email + senha), com sessão persistida via cookie |
+| 🚀 **Treinamento** | Dispara o treinamento da IA com dados reais do SIVEP-Gripe + feedbacks via backend |
+| 📝 **Formulário** | Coleta dados do paciente (Nome, CPF, Sexo, Nascimento) e sintomas/comorbidades |
+| 📊 **Resultado** | Exibe o diagnóstico com nível de risco, barra de probabilidade, limiares e perfil |
+| 📋 **Histórico** | Lista as últimas 50 avaliações do usuário com opção de feedback médico |
 
 ---
 
@@ -20,7 +22,7 @@ O dashboard é dividido em **três telas sequenciais**:
 
 ```
 streamlit/
-├── app.py            # Aplicação principal do Streamlit
+├── app.py            # Aplicação principal do Streamlit (auth, formulário, histórico, feedback)
 ├── style.css         # Design system externo (tema, componentes, responsividade)
 ├── requirements.txt  # Dependências Python do módulo
 ├── venv/             # Ambiente virtual (gerado localmente, não versionado)
@@ -112,7 +114,7 @@ streamlit run app.py
 | Pacote | Função |
 |--------|--------|
 | `streamlit` | Framework para criação do dashboard interativo |
-| `requests` | Comunicação HTTP com a API FastAPI do backend |
+| `requests` | Comunicação HTTP com a API FastAPI e Supabase REST API |
 | `python-dotenv` | Leitura das variáveis de ambiente do arquivo `.env` |
 
 ---
@@ -139,7 +141,31 @@ _load_css(os.path.join(os.path.dirname(__file__), "style.css"))
 
 ---
 
-## 🔐 Configuração de Ambiente
+## 🔐 Autenticação (Supabase Auth)
+
+O dashboard implementa um sistema completo de **login e cadastro** via Supabase Auth REST API:
+
+- **Login**: `POST /auth/v1/token?grant_type=password` — retorna JWT (`access_token`)
+- **Cadastro**: `POST /auth/v1/signup` — cria conta e redireciona para login
+- **Sessão**: O token e email do usuário são armazenados em `st.session_state` e persistidos via **cookie no navegador** (validade de 7 dias), evitando re-login a cada reload
+- **Logout**: Limpa a sessão e remove o cookie
+
+```python
+def _supabase_login(email: str, password: str) -> dict:
+    resp = requests.post(
+        f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
+        headers=AUTH_HEADERS,
+        json={"email": email, "password": password},
+        timeout=10,
+    )
+    return resp.json(), resp.status_code
+```
+
+Mensagens de erro do Supabase são traduzidas automaticamente para português.
+
+---
+
+## ⚙️ Configuração de Ambiente
 
 As variáveis sensíveis são lidas com prioridade via `os.environ` (`.env`) e fallback para `st.secrets` (produção no Streamlit Cloud):
 
@@ -166,22 +192,28 @@ Em produção, defina as variáveis em `~/.streamlit/secrets.toml` ou nas config
 Usuário abre o dashboard
         │
         ▼
+[Tela 0] Login / Cadastro
+  • Email + Senha via Supabase Auth
+  • Sessão persistida via cookie (7 dias)
+        │
+        ▼
 [Tela 1] Clica em "Iniciar Treinamento da IA"
         │
         ▼
 Streamlit faz POST /train
   Header: X-Train-Secret → FastAPI autentica
-        │  (dados SIVEP-Gripe via Supabase)
+        │  (dados SIVEP-Gripe + feedbacks via Supabase)
         ▼
 Modelo LogisticRegression treinado
 Resultado em cache por 3 horas ⚡
         │
         ▼
-[Tela 2] Formulário de Sintomas
-  • Idade (slider: 0–100 anos)
+[Tela 2] Formulário do Paciente
+  • Dados obrigatórios: Nome, CPF (com máscara e validação JS),
+    Sexo, Data de Nascimento (calcula idade automaticamente)
   • Sintomas: Febre, Tosse, Falta de Ar, Dor de Garganta, Sat. O₂ < 95%
   • Comorbidades: Asma, Diabetes, Cardiopatia
-  ⚠️ Ao menos 1 item obrigatório — botão desabilitado se nenhum marcado
+  ⚠️ Todos os dados básicos + ao menos 1 sintoma/comorbidade obrigatório
         │
         ▼
 Streamlit faz POST /predict → FastAPI
@@ -193,16 +225,91 @@ Streamlit faz POST /predict → FastAPI
   ⚠️ Moderado → prob ≥ 30%
   ✅ Leve     → prob < 30%
   (limiares definidos e retornados pelo backend)
+        │  (salva automaticamente no Supabase → tabela `historico`)
+        ▼
+[Tela 4] Histórico de Avaliações
+  • Últimas 50 avaliações do usuário logado
+  • Cards com badge de classificação, dados do paciente e sintomas
+  • Botões de feedback médico: confirmar desfecho real (Grave / Leve)
+  • Feedbacks validados são marcados visualmente
+        │
+        ▼
+[Retroalimentação → próximo ciclo de treinamento incorpora os feedbacks ↺]
 ```
 
 ---
 
-## 🔗 Endpoints Consumidos
+## 📋 Formulário do Paciente
+
+O formulário coleta os seguintes dados, todos com validação:
+
+### Dados Básicos (obrigatórios)
+
+| Campo | Tipo | Validação |
+|-------|------|-----------|
+| **Nome** | Texto livre | Não pode ser vazio |
+| **CPF** | Texto com máscara | Máscara `000.000.000-00` aplicada via JS em tempo real + validação de dígitos verificadores (algoritmo completo no Python e no JS) |
+| **Sexo** | Selectbox | Feminino / Masculino — seleção obrigatória |
+| **Nascimento** | Date picker | Formato DD/MM/AAAA — calcula idade automaticamente |
+
+### Sintomas e Comorbidades (ao menos 1 obrigatório)
+
+| Sintomas | Comorbidades |
+|----------|-------------|
+| 🌡️ Febre | 🌬️ Asma |
+| 😮‍💨 Tosse | 💉 Diabetes |
+| 💨 Falta de Ar / Dispneia | ❤️ Cardiopatia |
+| 🔴 Dor de Garganta | |
+| 🩸 Saturação O₂ < 95% | |
+
+O botão "Analisar com IA" permanece **desabilitado** até que todos os dados básicos estejam preenchidos e ao menos um sintoma/comorbidade esteja marcado.
+
+---
+
+## 📋 Histórico e Feedback Médico
+
+### Histórico
+
+Cada avaliação realizada é automaticamente salva na tabela `historico` do Supabase, vinculada ao email do usuário logado. O histórico exibe:
+
+- Badge de classificação com cor (Grave / Moderado / Leve)
+- Nome do paciente (quando disponível)
+- Data e hora da avaliação
+- Idade, sexo e CPF
+- Tags dos sintomas/comorbidades selecionados
+- Percentual de probabilidade de complicação
+
+### Feedback Médico (Retroalimentação)
+
+Cada card do histórico que **ainda não foi validado** exibe dois botões:
+
+- **"Confirmar Evolução: Grave (UTI/Óbito)"** — registra que o paciente realmente evoluiu para quadro grave
+- **"Confirmar Evolução: Leve/Moderado"** — registra que o paciente não apresentou complicação
+
+O feedback é salvo na tabela `feedbacks` do Supabase e, no próximo ciclo de treinamento, é incorporado ao dataset para melhorar a acurácia do modelo.
+
+Cards já validados exibem um badge verde: `✅ Validado pelo médico como: [desfecho]`.
+
+---
+
+## 🔗 Endpoints e APIs Consumidos
+
+### API FastAPI (Backend)
 
 | Método | Endpoint | Header obrigatório | Descrição |
-|--------|----------|--------------------|-----------|
+|--------|----------|--------------------|-----------| 
 | `POST` | `/train` | `X-Train-Secret` | Treina o modelo com os dados do Supabase |
 | `POST` | `/predict` | — | Retorna probabilidade, classificação e limiares |
+
+### Supabase REST API (acesso direto)
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/auth/v1/token?grant_type=password` | Login (retorna JWT) |
+| `POST` | `/auth/v1/signup` | Cadastro de novo usuário |
+| `POST` | `/rest/v1/historico` | Salva avaliação no histórico |
+| `GET` | `/rest/v1/historico?...` | Busca histórico do usuário logado (com join feedbacks) |
+| `POST` | `/rest/v1/feedbacks` | Registra feedback médico |
 
 **Resposta do `/predict`:**
 ```json
@@ -217,25 +324,6 @@ Streamlit faz POST /predict → FastAPI
 ```
 
 > A classificação e os limiares são definidos **exclusivamente pelo backend**. O frontend apenas exibe o que recebe, sem recalcular nem filtrar.
-
----
-
-## ✅ Validação do Formulário
-
-O botão "Analisar com IA" permanece **desabilitado** enquanto nenhum sintoma ou comorbidade estiver marcado:
-
-```python
-algum_selecionado = any([febre, tosse, dispneia, garganta,
-                         saturacao, asma, diabetes, cardiopatia])
-
-if not algum_selecionado:
-    # exibe aviso visual
-    
-if st.button("Analisar com IA →", type="primary", disabled=not algum_selecionado):
-    ...
-```
-
-Isso garante que o modelo sempre receba ao menos um sinal clínico, evitando previsões baseadas exclusivamente na idade.
 
 ---
 
@@ -259,7 +347,7 @@ Para forçar um novo treinamento antes do cache expirar, reinicie o servidor Str
 ## 🐛 Problemas Comuns
 
 | Erro | Causa Provável | Solução |
-|------|----------------|---------|
+|------|----------------|---------| 
 | `command not found: streamlit` | Venv não ativado ou deps não instaladas | Ative o venv e rode `pip install -r requirements.txt` |
 | `Erro de conexão: ...` | Backend FastAPI não está rodando | Suba a API antes de iniciar o Streamlit |
 | `403 Forbidden` no `/train` | `TRAIN_SECRET` ausente ou divergente do backend | Verifique se o `.env` tem o mesmo valor em ambos os módulos |
