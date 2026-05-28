@@ -166,6 +166,7 @@ def do_logout():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     _delete_user_cookie()
+    st.stop()
 
 
 # ══════════════════════════════════════════════════════════════

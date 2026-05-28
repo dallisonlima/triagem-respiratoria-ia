@@ -584,6 +584,24 @@ div[data-testid="stButton"] > button:not([kind="primary"]):hover {
     width: 100% !important;
 }
 
+[data-testid="stTextInput"] input::placeholder,
+[data-testid="stNumberInput"] input::placeholder,
+[data-testid="stDateInput"] input::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* 5.1 Garante que os labels dos formulários (CPF, Nome, etc) fiquem escuros */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] div,
+label {
+    color: #0f172a !important;
+}
+
+/* 5.2 Garante que o texto selecionado no Selectbox fique escuro */
+[data-baseweb="select"] span {
+    color: #0f172a !important;
+}
+
 /* 6. Remove outlines e sombras padrão do Streamlit ao focar no campo */
 [data-testid="stTextInput"] input:focus,
 [data-testid="stNumberInput"] input:focus,
