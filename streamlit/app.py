@@ -453,8 +453,16 @@ def enviar_feedback(id_historico: int, desfecho_real_grave: bool):
     except Exception as e:
         st.error(f"Erro de conexão: {e}")
 
-
-
+# Processa cliques nos botões de feedback do histórico via query params
+params = st.query_params
+if "fb_id" in params and "fb_grave" in params:
+    try:
+        f_id = int(params["fb_id"])
+        f_grave = params["fb_grave"] == "1"
+        st.query_params.clear()
+        enviar_feedback(f_id, f_grave)
+    except Exception:
+        pass
 
 
 # ══════════════════════════════════════════════════════════════
@@ -513,85 +521,102 @@ elif st.session_state.step == "form":
     c1, c2, c3 = st.columns([2, 2, 0.8])
     
     with c1:
-        cpf = st.text_input("CPF", placeholder="000.000.000-00", max_chars=14, key="paciente_cpf")
-        
-        # O campo Sexo agora fica logo abaixo do CPF na mesma coluna (c1)
-        sexo = st.selectbox("Sexo", options=["Feminino", "Masculino"], index=None, placeholder="Selecione", key="paciente_sexo")
-        
-        # Injeção de JS para aplicar a máscara no campo de CPF em tempo real
-        st.components.v1.html(r"""
-        <script>
-        const doc = window.parent.document;
-        const inputs = Array.from(doc.querySelectorAll('input'));
-        const cpfInput = inputs.find(i => i.placeholder === '000.000.000-00');
-        
-        function isValidCPF(cpf) {
-            cpf = cpf.replace(/[^\d]+/g, '');
-            if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
-            let soma = 0;
-            for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
-            let resto = 11 - (soma % 11);
-            if (resto === 10 || resto === 11) resto = 0;
-            if (resto !== parseInt(cpf.charAt(9))) return false;
-            soma = 0;
-            for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
-            resto = 11 - (soma % 11);
-            if (resto === 10 || resto === 11) resto = 0;
-            if (resto !== parseInt(cpf.charAt(10))) return false;
-            return true;
-        }
 
-        if (cpfInput && !cpfInput.dataset.maskAttached) {
-            cpfInput.dataset.maskAttached = 'true';
-            cpfInput.addEventListener('input', function(e) {
-                let v = e.target.value.replace(/\D/g, '');
-                if (v.length > 14) v = v.slice(0, 14);
-                
-                let rawValue = v; // Guarda os números puros
-                
-                v = v.replace(/(\d{3})(\d)/, '$1.$2');
-                v = v.replace(/(\d{3})(\d)/, '$1.$2');
-                v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-                
-                if (e.target.value !== v) {
-                    let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                    nativeInputValueSetter.call(e.target, v);
-                    e.target.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-                
-                // Mensagem de validação ao vivo
-                let stTextInput = cpfInput.closest('div[data-testid="stTextInput"]');
-                if (stTextInput) {
-                    let msgDiv = stTextInput.querySelector('.cpf-msg');
-                    if (!msgDiv) {
-                        msgDiv = doc.createElement('div');
-                        msgDiv.className = 'cpf-msg';
-                        msgDiv.style.fontSize = '0.8rem';
-                        msgDiv.style.marginTop = '4px';
-                        msgDiv.style.fontWeight = '600';
-                        stTextInput.appendChild(msgDiv);
-                    }
-                    
-                    if (rawValue.length === 11) {
-                        if (isValidCPF(rawValue)) {
-                            msgDiv.textContent = '✅ CPF Válido';
-                            msgDiv.style.color = '#059669';
-                        } else {
-                            msgDiv.textContent = '❌ CPF Inválido';
-                            msgDiv.style.color = '#dc2626';
-                        }
-                    } else if (rawValue.length > 0) {
-                        msgDiv.textContent = '⏳ Digitando...';
-                        msgDiv.style.color = '#94a3b8';
-                    } else {
-                        msgDiv.textContent = '';
-                    }
-                }
-            });
-        }
-        </script>
-        """, height=0, width=0)
+     # Container responsável pelo campo relacionado ao CPF
+     cpf_col = st.container()
+
+    with cpf_col:
+
+        # Função chamada sempre que o CPF é alterado
+        # Responsável por aplicar a máscara automaticamente
+        def formatar_cpf_input():
+
+            # Obtém o valor digitado no campo
+            valor = st.session_state.paciente_cpf
+            
+            # Remove caracteres não numéricos e limita a 11 dígitos
+            numeros = "".join(
+                filter(str.isdigit, valor)
+            )[:11]
+            
+            # Aplica a máscara progressivamente conforme a quantidade digitada
+            if len(numeros) <= 3:
+
+                st.session_state.paciente_cpf = numeros
+
+            elif len(numeros) <= 6:
+
+                st.session_state.paciente_cpf = (
+                    f"{numeros[:3]}.{numeros[3:]}"
+                )
+
+            elif len(numeros) <= 9:
+
+                st.session_state.paciente_cpf = (
+                    f"{numeros[:3]}."
+                    f"{numeros[3:6]}."
+                    f"{numeros[6:]}"
+                )
+
+            else:
+
+                st.session_state.paciente_cpf = (
+                    f"{numeros[:3]}."
+                    f"{numeros[3:6]}."
+                    f"{numeros[6:9]}-"
+                    f"{numeros[9:11]}"
+                )
+
+        # Campo de entrada do CPF
+        # on_change executa a função de máscara automaticamente
+        cpf = st.text_input(
+            "CPF",
+            placeholder="000.000.000-00",
+            key="paciente_cpf",
+            max_chars=14,
+            on_change=formatar_cpf_input
+        )
         
+        # Mantém apenas números para validação
+        cpf_numeros = "".join(
+            filter(str.isdigit, cpf)
+        )
+        
+        # Exibe feedback visual abaixo do campo CPF
+        if cpf_numeros:
+            # CPF incompleto
+            if len(cpf_numeros) < 11:
+                
+                st.markdown(
+            '<div class="cpf-feedback cpf-digitando">⏳ Digitando...</div>',
+            unsafe_allow_html=True
+        )
+            
+            # CPF válido
+            elif validar_cpf(cpf):
+
+                st.markdown(
+            '<div class="cpf-feedback cpf-valido">✅ CPF válido</div>',
+            unsafe_allow_html=True
+        )
+            
+            # CPF inválido
+            else:
+
+                st.markdown(
+            '<div class="cpf-feedback cpf-invalido">❌ CPF inválido</div>',
+            unsafe_allow_html=True
+        )
+
+    # Campo de seleção do sexo do paciente
+    sexo = st.selectbox(
+        "Sexo",
+        options=["Feminino", "Masculino"],
+        index=None,
+        placeholder="Selecione",
+        key="paciente_sexo"
+    )
+    
     with c2:
         data_minima = date.today() - timedelta(days=130*365)
         data_nasc = st.date_input("Nascimento", value=None, min_value=data_minima, max_value=date.today(), format="DD/MM/YYYY", key="paciente_nascimento")
@@ -784,7 +809,7 @@ elif st.session_state.step == "result":
 
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
-        if st.button("← Nova Evaluation", use_container_width=True):
+        if st.button("← Nova Avaliação", use_container_width=True):
             st.session_state.step      = "form"
             st.session_state.resultado = None
             st.rerun()
@@ -794,7 +819,6 @@ elif st.session_state.step == "result":
             st.rerun()
 
     render_footer()
-
 
 # ══════════════════════════════════════════════════════════════
 # TELA: HISTÓRICO
@@ -895,21 +919,18 @@ elif st.session_state.step == "historico":
     ✅ Validado pelo médico como: {texto_desfecho}
 </div>
 """
-
-            card_html += "</div>"
-            st.markdown(card_html, unsafe_allow_html=True)
-
-            # Botões de feedback nativos do Streamlit (sem navegação de página)
-            if not ja_validado:
+            else:
                 id_hist = reg.get("id")
                 if id_hist:
-                    fb_col1, fb_col2 = st.columns(2)
-                    with fb_col1:
-                        if st.button("🚨 Confirmar: Grave", key=f"fb_grave_{id_hist}", use_container_width=True):
-                            enviar_feedback(id_hist, True)
-                    with fb_col2:
-                        if st.button("✅ Confirmar: Leve/Moderado", key=f"fb_leve_{id_hist}", use_container_width=True):
-                            enviar_feedback(id_hist, False)
+                    card_html += f"""
+<div class="hist-card-actions" style="display:flex;gap:12px;margin-top:16px;border-top:1px solid rgba(148,163,184,0.12);padding-top:16px;">
+    <a href="?fb_id={id_hist}&fb_grave=1" target="_self" class="btn-primary" style="flex:1;text-decoration:none;font-size:0.85rem;font-weight:600;padding:10px 16px;border-radius:10px;text-align:center;background:linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);color:white;box-shadow:0 4px 12px rgba(37,99,235,0.15);">Confirmar Evolução: Grave (UTI/Óbito)</a>
+    <a href="?fb_id={id_hist}&fb_grave=0" target="_self" class="btn-secondary" style="flex:1;text-decoration:none;font-size:0.85rem;font-weight:600;padding:10px 16px;border-radius:10px;text-align:center;background:rgba(241,245,249,1);color:#475569;border:1px solid rgba(148,163,184,0.2);">Confirmar Evolução: Leve/Moderado</a>
+</div>
+"""
+            
+            card_html += "</div>"
+            st.markdown(card_html, unsafe_allow_html=True)
 
     st.write("")
     if st.button("← Voltar", use_container_width=True):

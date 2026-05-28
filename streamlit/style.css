@@ -152,6 +152,7 @@ div.st-key-topbar [data-testid="stButton"] > button:hover {
 .topbar-icon {
     font-size: 30px;
     background: linear-gradient(135deg, #2563eb, #0ea5e9);
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -292,7 +293,7 @@ div.st-key-topbar [data-testid="stButton"] > button:hover {
             #2563eb 0%,
             #0ea5e9 100%
         );
-
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -519,6 +520,27 @@ div[data-testid="stButton"] > button:not([kind="primary"]):hover {
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* Mensagens de feedback CPF */
+
+.cpf-feedback {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 4px;
+    margin-bottom: 12px;
+}
+
+.cpf-digitando {
+    color: #64748B;
+}
+
+.cpf-valido {
+    color: #059669;
+}
+
+.cpf-invalido {
+    color: #B91C1C;
+}
+
 /* ══════════════════════════════════════════════════════════════
    INPUTS (VERSÃO COMPLETA E ATUALIZADA)
 ══════════════════════════════════════════════════════════════ */
@@ -642,11 +664,10 @@ label {
     font-weight: 800;
     letter-spacing: -0.06em;
     line-height: 1;
-
     font-family: 'JetBrains Mono', monospace;
-
     background:
         linear-gradient(135deg, #2563eb, #0ea5e9);
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -1062,7 +1083,12 @@ label {
 .login-icon {
     font-size: 3.5rem;
     margin-bottom: 14px;
-    background: linear-gradient(135deg, #2563eb, #0ea5e9);
+    background: linear-gradient(
+        135deg,
+        #2563eb,
+        #0ea5e9
+    );
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
