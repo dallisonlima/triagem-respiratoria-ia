@@ -573,7 +573,7 @@ elif st.session_state.step == "form":
             "CPF",
             placeholder="000.000.000-00",
             key="paciente_cpf",
-            max_chars=11,
+            max_chars=14,
             on_change=formatar_cpf_input
         )
         
@@ -907,28 +907,30 @@ elif st.session_state.step == "historico":
     </div>
 """
 
-            # Lógica de Feedback embutida no cartão
+                        # Lógica de Feedback embutida no cartão
             feedbacks_do_registro = reg.get("feedbacks", [])
             ja_validado = len(feedbacks_do_registro) > 0
 
             if ja_validado:
                 desfecho_grave = feedbacks_do_registro[0].get("desfecho_real_grave", False)
-                texto_desfecho = "Grave" if desfecho_grave else "Leve/Moderado"
+                texto_desfecho = ("Grave" if desfecho_grave else "Leve/Moderado")
+
                 card_html += f"""
-<div style="margin-top:16px;padding:10px;background:rgba(16,185,129,0.1);border-radius:12px;color:#059669;font-size:0.85rem;font-weight:600;text-align:center;border:1px solid rgba(16,185,129,0.2);">
-    ✅ Validado pelo médico como: {texto_desfecho}
+<div style="margin-top:16px;padding:10px;background:rgba(16,185,129,0.1);border-radius:12px;color:#059669;font-size:0.85rem;font-weight:600;text-align:center;border:1px solid rgba(16,185,129,0.2);"> ✅ Validado pelo médico como: {texto_desfecho}
 </div>
 """
             else:
                 id_hist = reg.get("id")
                 if id_hist:
                     card_html += f"""
-<div class="hist-card-actions" style="display:flex;gap:12px;margin-top:16px;border-top:1px solid rgba(148,163,184,0.12);padding-top:16px;">
-    <a href="?fb_id={id_hist}&fb_grave=1" target="_self" class="btn-primary" style="flex:1;text-decoration:none;font-size:0.85rem;font-weight:600;padding:10px 16px;border-radius:10px;text-align:center;background:linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);color:white;box-shadow:0 4px 12px rgba(37,99,235,0.15);">Confirmar Evolução: Grave (UTI/Óbito)</a>
-    <a href="?fb_id={id_hist}&fb_grave=0" target="_self" class="btn-secondary" style="flex:1;text-decoration:none;font-size:0.85rem;font-weight:600;padding:10px 16px;border-radius:10px;text-align:center;background:rgba(241,245,249,1);color:#475569;border:1px solid rgba(148,163,184,0.2);">Confirmar Evolução: Leve/Moderado</a>
+<div class="hist-card-actions">
+
+<a href="?fb_id={id_hist}&fb_grave=1" target="_self" class="hist-action-btn hist-btn-grave">🚨 Confirmar Evolução: Grave (UTI/Óbito)</a>
+
+<a href="?fb_id={id_hist}&fb_grave=0" target="_self" class="hist-action-btn hist-btn-leve">✅ Confirmar Evolução: Leve/Moderado</a>
+
 </div>
 """
-            
             card_html += "</div>"
             st.markdown(card_html, unsafe_allow_html=True)
 
