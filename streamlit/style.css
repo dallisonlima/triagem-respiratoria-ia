@@ -1434,6 +1434,57 @@ label {
     color: #94a3b8;
 }
 
+/* Container dos botões */
+.hist-card-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-top:16px;
+    padding-top:16px;
+    border-top:1px solid rgba(148,163,184,.12);
+
+}
+
+.hist-action-btn{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    width:100%;
+    min-height:56px;
+    padding:12px 16px;
+    box-sizing:border-box;
+    border-radius:10px;
+    text-decoration:none !important;
+    font-size:.85rem;
+    font-weight:600;
+}
+
+/* Remove aparência padrão de links */
+.hist-action-btn:link,
+.hist-action-btn:visited,
+.hist-action-btn:hover,
+.hist-action-btn:active{
+    text-decoration:none !important;
+}
+
+/* Botão Grave */
+.hist-btn-grave{
+    color:white !important;
+    background:linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+    box-shadow: 0 4px 12px rgba(37,99,235,.15);
+}
+
+/* Botão Leve/Moderado */
+.hist-btn-leve{
+    background: rgba(241,245,249,1);
+    color:#475569 !important;
+    border:1px solid rgba(148,163,184,.2);
+}
+
+.hist-action-btn:hover{
+    transform: translateY(-1px);
+}
+
 /* ══════════════════════════════════════════════════════════════
    UTILITÁRIOS
 ══════════════════════════════════════════════════════════════ */
