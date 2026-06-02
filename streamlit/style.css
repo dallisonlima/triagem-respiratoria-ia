@@ -1333,82 +1333,68 @@ label {
 /* ══════════════════════════════════════════════════════════════
    HISTÓRICO — CARDS
 ══════════════════════════════════════════════════════════════ */
-.hist-card {
-    background: rgba(255, 255, 255, 0.88);
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    border-radius: 18px;
-    padding: 22px 24px;
-    margin-bottom: 14px;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-    position: relative;
-    overflow: hidden;
-}
-
-.hist-card-accent {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 3px;
-}
-
+/* Estrutura interna que faz a divisão entre dados e probabilidade */
 .hist-card-body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 12px;
+    width: 100%;
+    text-align: left;
+    font-family: sans-serif;
 }
 
+/* Onde a mágica do indicador de classificação acontece */
+.hist-card-border-indicator {
+    padding-left: 16px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+/* Badge de Classificação (Grave, Moderado, Leve) */
 .hist-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border-radius: 999px;
-    padding: 4px 12px;
+    margin-bottom: 6px;
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 8px;
     font-size: 0.75rem;
     font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 10px;
-    border: 1px solid;
 }
 
 .hist-nome {
-    font-size: 0.92rem;
     font-weight: 700;
-    color: #0f172a;
+    color: #1e293b;
     margin-bottom: 4px;
+    font-size: 1.1rem;
 }
 
 .hist-meta {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     color: #64748b;
-    font-family: 'JetBrains Mono', monospace;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .hist-perfil {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: #475569;
-    margin-bottom: 4px;
 }
 
 .hist-tags {
+    margin-top: 8px;
     display: flex;
-    flex-wrap: wrap;
     gap: 6px;
-    margin-top: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
 }
 
 .hist-tag {
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 999px;
+    background: #ffffff; /* 🌟 Alterado para branco puro */
+    border: 1px solid #e2e8f0; /* 🎨 Borda sutil em tom de cinza claro para dar acabamento */
+    border-radius: 12px;
     padding: 3px 10px;
     font-size: 0.78rem;
-    color: #334155;
+    color: #334155; /* Mantém o texto escuro para leitura */
 }
 
 .hist-sem-sintoma {
@@ -1416,73 +1402,42 @@ label {
     font-size: 0.82rem;
 }
 
+/* Bloco da Probabilidade (Direita) */
 .hist-prob {
     text-align: right;
-    min-width: 80px;
+    min-width: 105px;
 }
 
+/* Ajustado para 1.55rem conforme a sua preferência */
 .hist-prob-valor {
-    font-size: 2rem;
+    font-size: 1.55rem;
     font-weight: 800;
     color: #0f172a;
-    font-family: 'JetBrains Mono', monospace;
-    letter-spacing: -0.04em;
+    line-height: 1;
 }
 
 .hist-prob-label {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-top: 4px;
+    letter-spacing: 0.2px;
 }
 
-/* Container dos botões */
-.hist-card-actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:12px;
-    margin-top:16px;
-    padding-top:16px;
-    border-top:1px solid rgba(148,163,184,.12);
-
-}
-
-.hist-action-btn{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    width:100%;
-    min-height:56px;
-    padding:12px 16px;
-    box-sizing:border-box;
-    border-radius:10px;
-    text-decoration:none !important;
-    font-size:.85rem;
-    font-weight:600;
-}
-
-/* Remove aparência padrão de links */
-.hist-action-btn:link,
-.hist-action-btn:visited,
-.hist-action-btn:hover,
-.hist-action-btn:active{
-    text-decoration:none !important;
-}
-
-/* Botão Grave */
-.hist-btn-grave{
-    color:white !important;
-    background:linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
-    box-shadow: 0 4px 12px rgba(37,99,235,.15);
-}
-
-/* Botão Leve/Moderado */
-.hist-btn-leve{
-    background: rgba(241,245,249,1);
-    color:#475569 !important;
-    border:1px solid rgba(148,163,184,.2);
-}
-
-.hist-action-btn:hover{
-    transform: translateY(-1px);
+/* NOVA CLASSE: Caixa de validação médica (Passo 2) */
+.hist-validacao-box {
+    margin-top: 20px;
+    margin-bottom: 12px;
+    padding: 16px;
+    background-color: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    color: #059669;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: center;
+    font-family: sans-serif;
 }
 
 /* ══════════════════════════════════════════════════════════════
